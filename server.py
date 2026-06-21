@@ -44,23 +44,8 @@ def _dismiss(label: str) -> None:
 
 
 def _kickstart(label: str) -> tuple[bool, str]:
-    def _run(args):
-        return subprocess.run(args, capture_output=True, text=True, timeout=10)
-
-    try:
-        r = _run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"])
-        if r.returncode == 0:
-            return True, (r.stdout + r.stderr).strip()
-        plist = os.path.expanduser(f"~/Library/LaunchAgents/{label}.plist")
-        if not os.path.isfile(plist):
-            return False, f"plist לא קיים: {plist}"
-        load = _run(["launchctl", "load", plist])
-        retry = _run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"])
-        if retry.returncode == 0:
-            return True, f"נטען וברץ ({(load.stdout + load.stderr).strip()})".strip()
-        return False, (retry.stdout + retry.stderr + " | load: " + load.stdout + load.stderr).strip()
-    except (subprocess.TimeoutExpired, OSError) as e:
-        return False, str(e)
+    # Cross-platform: launchd on macOS, Task Scheduler on Windows.
+    return status_engine.kickstart(label)
 
 
 PRESETS = {"today", "yesterday", "7d", "14d", "30d", "week"}

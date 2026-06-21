@@ -1,37 +1,51 @@
 # Agents Dashboard
 
-דשבורד מקומי (view-only) למעקב אחרי סוכני launchd על מק. הוא מציג בזמן אמת אילו סוכנים רצים, מה הם עשו לאחרונה, מי נכשל ומי נתקע, וקודם כל מה דורש את תשומת ליבך. הכל רץ אצלך על המחשב, בלי שום שרת חיצוני.
+דשבורד מקומי (view-only) למעקב אחרי משימות מתוזמנות. **חוצה-פלטפורמות: macOS (launchd) ו-Windows (Task Scheduler).** הוא מציג בזמן אמת אילו סוכנים רצים, מה הם עשו לאחרונה, מי נכשל ומי נתקע, וקודם כל מה דורש את תשומת ליבך. הכל רץ אצלך על המחשב, בלי שום שרת חיצוני. הוא מזהה את מערכת ההפעלה לבד ובוחר את ה-backend המתאים.
 
 > כלי לתלמידי הסדנה. אין כאן שום מפתח, טוקן או נתון אישי. אתה מגדיר את הסוכנים שלך בקובץ `agents.json` והדשבורד מציג אותם.
 
 ## מה זה עושה
 
-* סורק את כל קבצי ה-launchd (`~/Library/LaunchAgents/*.plist`) שמתאימים לתחיליות שהגדרת.
+* סורק את המשימות המתוזמנות שלך (launchd במק, Task Scheduler בווינדוס) ומסנן לפי התחיליות שהגדרת.
 * קורא את הלוג של כל סוכן ומסכם בעברית פשוטה מה קרה בריצה האחרונה.
 * מסמן: תקין / רץ עכשיו / נכשל / לא רץ מזמן / עוד לא רץ, ומרים למעלה כל מה שצריך טיפול.
 * תצוגת טווח תאריכים (היום, אתמול, השבוע, 7/14/30 ימים, או טווח מותאם).
-* כפתור "הרץ שוב" לכל סוכן (מפעיל `launchctl kickstart`) וכפתור "סגור התראה".
+* כפתור "הרץ שוב" לכל סוכן (`launchctl kickstart` במק, `schtasks /run` בווינדוס) וכפתור "סגור התראה".
 
 ## דרישות
 
-* macOS (המעקב מבוסס על `launchctl` ו-`~/Library/LaunchAgents`).
-* Python 3.9 ומעלה (מגיע מובנה במק). אין תלויות חיצוניות, רק ספריית התקן.
+* **macOS** (מבוסס `launchctl` ו-`~/Library/LaunchAgents`) **או Windows 10/11** (מבוסס Task Scheduler דרך PowerShell המובנה).
+* Python 3.9 ומעלה. אין תלויות חיצוניות, רק ספריית התקן.
 
 ## התקנה והרצה (30 שניות)
 
 ```bash
 git clone <כתובת-הריפו> agents-dashboard
 cd agents-dashboard
-python3 server.py
+python3 server.py      # במק
+python server.py       # בווינדוס
 ```
 
 פתח בדפדפן: **http://localhost:8420**
 
-בהרצה ראשונה הדשבורד יהיה ריק ("הכל תקין, אין מה לטפל"). זה תקין: הוא מציג רק סוכני launchd אמיתיים שקיימים אצלך תחת `~/Library/LaunchAgents` ושה-Label שלהם מתחיל באחת מ-`include_prefixes`. ברירת המחדל `com.example` לא תואמת לכלום אצלך בכוונה. שלושת הסוכנים ב-`agents.json` הם תבנית להעתקה. שנה את `include_prefixes` לתחילית של הסוכנים שלך (למשל `com.yourname`) והם יופיעו מיד.
+בהרצה ראשונה הדשבורד יהיה ריק ("הכל תקין, אין מה לטפל"). זה תקין: הוא מציג רק משימות מתוזמנות אמיתיות שקיימות אצלך ושה-Label שלהן מתחיל באחת מ-`include_prefixes`. ברירת המחדל `com.example` לא תואמת לכלום אצלך בכוונה. שלושת הסוכנים ב-`agents.json` הם תבנית להעתקה. שנה את `include_prefixes` לתחילית של הסוכנים שלך והם יופיעו מיד (ראה ההבדל בין מק לווינדוס למטה).
+
+## מק מול Windows: מה ה-"Label"
+
+הדשבורד עובד אותו דבר בשני המקרים, רק מקור המשימות שונה, ולכן גם איך נראה ה-Label (המפתח ב-`agents.json` ו-`include_prefixes`):
+
+| | macOS | Windows |
+|---|---|---|
+| מקור | `~/Library/LaunchAgents/*.plist` | Task Scheduler (PowerShell) |
+| Label לדוגמה | `com.yourname.backup` | `\backup` או `\MyTasks\backup` (נתיב המשימה) |
+| `include_prefixes` | תחילית ה-Label, למשל `com.yourname` | שם המשימה או הנתיב, למשל `\MyTasks` או `backup` |
+| לוח זמנים | נקרא מה-plist | מוערך מהפרש בין ריצה אחרונה לבאה |
+
+בווינדוס, זמן הריצה האחרונה והקוד יציאה מגיעים ישירות מ-Task Scheduler, אז הדשבורד עובד גם בלי לוג. אם תגדיר `log_path`, תקבל בנוסף סיכום בעברית של מה שקרה בריצה.
 
 ## הגדרת הסוכנים שלך: `agents.json`
 
-זה הקובץ היחיד שאתה עורך. מבנה:
+זה הקובץ היחיד שאתה עורך. מבנה (הדוגמה במק; בווינדוס המפתחות הם נתיבי משימות כמו `\backup`):
 
 ```json
 {
@@ -61,7 +75,7 @@ python3 server.py
 
 ### השדות של כל סוכן
 
-המפתח של כל סוכן הוא ה-Label המדויק שלו ב-launchd (`com.example.daily-backup`).
+המפתח של כל סוכן הוא ה-Label המדויק שלו: ב-launchd זה ה-Label מה-plist (`com.example.daily-backup`), בווינדוס זה נתיב המשימה ב-Task Scheduler (`\backup`).
 
 | שדה | חובה | מה זה |
 |---|---|---|
@@ -88,21 +102,27 @@ python3 server.py
 
 ### לוח הזמנים
 
-הדשבורד לא קובע לו"ז. הוא קורא אותו מתוך ה-plist של כל סוכן (`StartInterval` או `StartCalendarInterval`) ומציג אותו ("יומי 07:00", "כל 30 דק'" וכו'). זה גם מה שקובע מתי סוכן נחשב "לא רץ מזמן".
+הדשבורד לא קובע לו"ז. במק הוא קורא אותו מתוך ה-plist (`StartInterval` או `StartCalendarInterval`). בווינדוס הוא מעריך את התדירות מתוך ההפרש בין הריצה האחרונה לבאה ב-Task Scheduler. בשני המקרים זה מה שקובע מתי סוכן נחשב "לא רץ מזמן".
 
 ## הרצה אוטומטית ברקע (מומלץ)
 
 כדי שהדשבורד יעלה לבד עם הדלקת המחשב ויישאר חי:
 
+**במק:**
 ```bash
 bash install-launchagent.sh
-```
-
-הסקריפט כותב launchd job עם הנתיבים שלך (בלי שמות משתמש מקודדים), טוען אותו ומאמת. להסרה:
-
-```bash
+# להסרה:
 launchctl bootout gui/$(id -u)/com.example.agents-dashboard
 ```
+
+**בווינדוס** (PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File install-task.ps1
+# להסרה:
+Unregister-ScheduledTask -TaskName "agents-dashboard" -Confirm:$false
+```
+
+כל סקריפט כותב את המשימה עם הנתיבים שלך (בלי שמות משתמש מקודדים), רושם אותה ומאמת.
 
 ## המנהל האוטומטי (אופציונלי): `manager.py`
 
@@ -132,11 +152,13 @@ python3 -m unittest discover -s tests -v
 | קובץ | תפקיד |
 |---|---|
 | `server.py` | שרת ה-HTTP והדשבורד (פורט 8420). |
-| `status_engine.py` | גילוי סוכנים, קריאת plist, גזירת סטטוס. |
+| `status_engine.py` | גילוי סוכנים, גזירת סטטוס, `kickstart` חוצה-פלטפורמות. |
+| `win_provider.py` | backend הווינדוס (Task Scheduler דרך PowerShell). |
 | `extractors.py` | פענוח לוגים לפי `result_hint`. |
 | `render.py` | רינדור ה-HTML והניסוח בעברית. |
 | `manager.py` | מנהל אוטומטי אופציונלי (תיקון + סיכום). |
 | `agents.json` | ההגדרות שלך. הקובץ היחיד שעורכים. |
+| `install-launchagent.sh` / `install-task.ps1` | התקנת autostart (מק / ווינדוס). |
 | `tests/` | בדיקות יחידה. |
 
 ---

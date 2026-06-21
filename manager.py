@@ -104,14 +104,9 @@ def _cooldown_remaining_min(kicks: list) -> int:
 
 
 def kickstart(label: str) -> bool:
-    try:
-        r = subprocess.run(
-            ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"],
-            capture_output=True, text=True, timeout=15,
-        )
-        return r.returncode == 0
-    except Exception:
-        return False
+    # Cross-platform (launchd on macOS, Task Scheduler on Windows).
+    ok, _ = status_engine.kickstart(label)
+    return ok
 
 
 def send_whatsapp(text: str) -> bool:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import glob
 import json
 import plistlib
@@ -171,28 +172,50 @@ def _parse_ts(ts):
     return None
 
 
-def build_records(cfg, launchagents_dir=DEFAULT_LAUNCHAGENTS, now=None, runner=None, window=None):
+def _collect_os(cfg, launchagents_dir, runner):
+    """Yield (label, meta, probe) for the active platform.
+
+    meta:  {standard_out_path, interval_seconds, schedule_human, os_last_run?}
+    probe: {is_running, last_exit_code, os_last_run?}
+
+    macOS reads launchd plists + `launchctl`; Windows reads Task Scheduler via
+    win_provider. The rest of build_records is identical for both."""
+    if sys.platform == "win32":
+        try:
+            import win_provider
+        except Exception:
+            return
+        for item in win_provider.collect(cfg):
+            yield item
+        return
+    for label in discover_labels(launchagents_dir, cfg):
+        plist_path = os.path.join(launchagents_dir, label + ".plist")
+        if os.path.isfile(plist_path):
+            meta = parse_plist(plist_path)
+        else:
+            meta = {"standard_out_path": None, "interval_seconds": 86400, "schedule_human": "לא ידוע"}
+        probe = probe_launchctl(label, runner=runner)
+        yield label, meta, probe
+
+
+def build_records(cfg, launchagents_dir=DEFAULT_LAUNCHAGENTS, now=None, runner=None, window=None, collector=None):
     now = now or datetime.now(timezone.utc)
     default_sigs = cfg.get("default_error_signatures", [])
     today = now.strftime("%Y-%m-%d")
     records = []
 
-    for label in discover_labels(launchagents_dir, cfg):
+    source = collector(cfg, launchagents_dir, runner) if collector else _collect_os(cfg, launchagents_dir, runner)
+    for label, meta, lc in source:
         try:
             agent_cfg = cfg.get("agents", {}).get(label, {})
             name = agent_cfg.get("name", label.split(".")[-1])
             desc = agent_cfg.get("desc", "")
             category = agent_cfg.get("category", "אחר")
-            plist_path = os.path.join(launchagents_dir, label + ".plist")
-            meta = parse_plist(plist_path) if os.path.isfile(plist_path) else {
-                "standard_out_path": None, "interval_seconds": 86400, "schedule_human": "לא ידוע"}
 
             log_cfg = dict(agent_cfg)
             if not log_cfg.get("log_path"):
                 log_cfg["log_path"] = meta.get("standard_out_path")
             logdata = extractors.read_log(log_cfg, default_sigs, today=today)
-
-            lc = probe_launchctl(label, runner=runner)
 
             last_run_dt = None
             duration = None
@@ -203,6 +226,10 @@ def build_records(cfg, launchagents_dir=DEFAULT_LAUNCHAGENTS, now=None, runner=N
                 e = _parse_ts(last.get("end"))
                 if s and e:
                     duration = int((e - s).total_seconds())
+            # Fall back to the OS-reported last run (Windows Task Scheduler) when
+            # the log has no parseable START/END markers.
+            if last_run_dt is None:
+                last_run_dt = _parse_ts(meta.get("os_last_run") or lc.get("os_last_run"))
 
             st = derive_status(lc["is_running"], lc["last_exit_code"],
                                last_run_dt, meta["interval_seconds"], now)
@@ -267,3 +294,35 @@ def build_records(cfg, launchagents_dir=DEFAULT_LAUNCHAGENTS, now=None, runner=N
                 label=label, name=label, category="אחר",
                 status="unknown", last_result=f"שגיאת פרסור: {exc}"))
     return records
+
+
+def kickstart(label: str) -> tuple[bool, str]:
+    """Run an agent now, cross-platform.
+
+    Windows: `schtasks /run` on the task. macOS: `launchctl kickstart`, with a
+    load + retry fallback for agents that were unloaded. Returns (ok, message).
+    """
+    if sys.platform == "win32":
+        try:
+            import win_provider
+            return win_provider.kickstart(label)
+        except Exception as e:  # noqa: BLE001
+            return False, str(e)
+
+    def _run(args):
+        return subprocess.run(args, capture_output=True, text=True, timeout=10)
+
+    try:
+        r = _run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"])
+        if r.returncode == 0:
+            return True, (r.stdout + r.stderr).strip()
+        plist = os.path.expanduser(f"~/Library/LaunchAgents/{label}.plist")
+        if not os.path.isfile(plist):
+            return False, f"plist לא קיים: {plist}"
+        load = _run(["launchctl", "load", plist])
+        retry = _run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"])
+        if retry.returncode == 0:
+            return True, f"נטען וברץ ({(load.stdout + load.stderr).strip()})".strip()
+        return False, (retry.stdout + retry.stderr + " | load: " + load.stdout + load.stderr).strip()
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return False, str(e)
