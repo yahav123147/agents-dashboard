@@ -1,6 +1,8 @@
 # Runtime logs (never commit, may contain your agents' real output)
 *.log
 *.err.log
+# ...but the test fixtures ARE logs and must be tracked
+!tests/fixtures/logs/*.log
 
 # Runtime state
 dashboard_state.json

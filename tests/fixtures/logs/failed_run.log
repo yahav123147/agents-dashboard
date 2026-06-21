@@ -1,0 +1,5 @@
+=== [2026-05-29 08:03:59] write_article_cc_am START ===
+[2026-05-29 08:03:59] Topic: something
+[2026-05-29 08:07:33] FAILED (exit=1, critic_rounds=0
+  Last line: API Error: Request timed out
+=== [2026-05-29 08:07:33] write_article_cc_am END (exit=1) ===
