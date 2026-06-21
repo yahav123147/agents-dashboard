@@ -1,0 +1,38 @@
+{
+  "include_prefixes": ["com.example"],
+  "exclude_patterns": [],
+  "default_error_signatures": [
+    "traceback",
+    "exception",
+    "failed ",
+    "error:",
+    "http 4",
+    "http 5"
+  ],
+  "agents": {
+    "com.example.daily-backup": {
+      "name": "גיבוי יומי",
+      "desc": "מגבה את הקבצים החשובים כל לילה",
+      "category": "health",
+      "result_hint": "generic",
+      "log_path": "~/Library/Logs/example/backup.log",
+      "auto_fix": true
+    },
+    "com.example.report-builder": {
+      "name": "בונה דוחות",
+      "desc": "מייצר דוח סיכום כל בוקר",
+      "category": "reports",
+      "result_hint": "nl_report",
+      "log_path": "~/Library/Logs/example/report.log"
+    },
+    "com.example.health-check": {
+      "name": "בדיקת תקינות",
+      "desc": "בודק שכל השירותים מגיבים",
+      "category": "health",
+      "result_hint": "python_freeform",
+      "log_path": "~/Library/Logs/example/health.log",
+      "error_signatures": ["traceback", "down", "unhealthy"],
+      "auto_fix": true
+    }
+  }
+}

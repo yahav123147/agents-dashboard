@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="60">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>הסוכנים שלי</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1b2330; --muted:#5b6678; --line:#e3e8ef;
+    --ok:#1f8a4c; --ok-bg:#e6f6ec; --fail:#c23b2e; --fail-bg:#fde8e5;
+    --stale:#9a6a00; --stale-bg:#fcf2da; --run:#1f5fb0; --run-bg:#e6eefb;
+    --none:#5b6678; --none-bg:#eef1f5;
+    --healed:#1565c0; --healed-bg:#e3f2fd;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;
+       font-size:15px;line-height:1.55;margin:0;padding:24px}
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-size:24px;font-weight:800;margin:0 0 4px}
+  .lead{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .legend{display:inline-block;margin-right:4px}
+  .legend b{font-weight:700}
+
+  .sumbar{display:flex;gap:14px;margin-bottom:26px;flex-wrap:wrap}
+  .sum{flex:1;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+       padding:16px 14px;text-align:center;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .sum b{display:block;font-size:34px;font-weight:800;line-height:1}
+  .sum span{font-size:13px;color:var(--muted)}
+  .s-ok b{color:var(--ok)} .s-run b{color:var(--run)} .s-fail b{color:var(--fail)} .s-attn b{color:var(--stale)}
+  .s-healed b{color:var(--healed)}
+
+  .block-title{font-size:15px;font-weight:800;margin:26px 4px 10px}
+  .fail-title{color:var(--fail)}
+  .allgood{background:var(--ok-bg);color:var(--ok);border-radius:12px;padding:16px;font-weight:700;text-align:center}
+
+  .pill{flex:none;display:inline-block;min-width:84px;text-align:center;padding:5px 10px;border-radius:999px;
+        font-size:13px;font-weight:700}
+  .p-ok{background:var(--ok-bg);color:var(--ok)} .p-fail{background:var(--fail-bg);color:var(--fail)}
+  .p-stale{background:var(--stale-bg);color:var(--stale)} .p-run{background:var(--run-bg);color:var(--run)}
+  .p-none{background:var(--none-bg);color:var(--none)}
+  .p-healed{background:var(--healed-bg);color:var(--healed)}
+
+  .attn{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .arow{display:flex;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--line)}
+  .arow:first-child{border-top:0}
+  .atxt{min-width:210px}
+  .anm{font-weight:700} .adesc{font-size:13px;color:var(--muted)}
+  .awhy{flex:1;font-size:15px;font-weight:600}
+  .awhen{color:var(--muted);font-size:13px;white-space:nowrap}
+
+  .cardlist{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .crow{display:flex;align-items:center;gap:14px;padding:13px 16px;border-top:1px solid var(--line)}
+  .crow:first-child{border-top:0}
+  .ctxt{min-width:210px}
+  .cnm{font-weight:700} .cdesc{font-size:13px;color:var(--muted)}
+  .cwhat{flex:1;color:#33405a}
+  .cwhen{color:var(--muted);font-size:13px;white-space:nowrap}
+
+  details{margin-top:4px}
+  summary{cursor:pointer;color:var(--run);font-size:13px;list-style:none}
+  ul.runs{margin:8px 0 4px;padding-right:18px;color:var(--muted);font-size:13px}
+  ul.runs li{margin:2px 0}
+  details a{display:inline-block;margin-top:6px;color:var(--run);text-decoration:none;font-size:13px}
+
+  .picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 18px;padding:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+  .pchip{display:inline-block;padding:6px 12px;border-radius:999px;font-size:13px;color:var(--muted);text-decoration:none;background:transparent;border:1px solid transparent}
+  .pchip:hover{background:#eef1f5}
+  .pchip.active{background:var(--ink);color:#fff}
+  .psep{color:var(--line);margin:0 4px}
+  .pcustom{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+  .pcustom input{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit}
+  .pcustom button{padding:6px 14px;border-radius:6px;border:0;background:var(--run);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+  .winlabel{margin:0 4px 10px;font-size:14px;color:var(--muted)} .winlabel b{color:var(--ink)}
+
+  .actions{display:flex;gap:6px;flex:none;align-items:center}
+  .btn{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);font-family:inherit;text-decoration:none;display:inline-block;line-height:1.4}
+  .btn:hover{background:#f4f6f9}
+  .btn-run{background:var(--run);color:#fff;border-color:var(--run)}
+  .btn-run:hover{filter:brightness(1.08);background:var(--run)}
+  .btn-dismiss{background:#fff;color:var(--muted)}
+  .btn-link{color:var(--run);background:transparent;border:0;padding:6px 8px}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .btn.flash-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-bg)}
+
+  @media(max-width:640px){
+    .arow,.crow{flex-wrap:wrap}
+    .awhy,.cwhat{flex-basis:100%}
+    .atxt,.ctxt{min-width:0}
+    .actions{flex-basis:100%;justify-content:flex-end}
+  }
+</style>
+</head>
+<body><div class="wrap">
+<h1>הסוכנים שלי</h1>
+<p class="lead">כל המשימות האוטומטיות שלך במקום אחד &middot; עודכן {{UPDATED}} &middot;
+  <span class="legend"><b style="color:var(--ok)">ירוק</b> = תקין</span>,
+  <span class="legend"><b style="color:var(--stale)">כתום</b> = לא רץ כמו שצריך</span>,
+  <span class="legend"><b style="color:var(--fail)">אדום</b> = נכשל</span>
+</p>
+{{PICKER}}
+{{SUMMARY}}
+{{ATTENTION}}
+{{TABLES}}
+</div>
+<script>
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest("button[data-action]");
+  if (!btn) return;
+  ev.preventDefault();
+  const action = btn.dataset.action;
+  const label = btn.dataset.label;
+  const row = btn.closest(".arow");
+  const originalText = btn.textContent;
+  if (action === "dismiss") {
+    if (!confirm("לסגור את ההתראה ליום אחד?")) return;
+  }
+  btn.disabled = true;
+  btn.textContent = action === "kickstart" ? "מריץ..." : "...";
+  try {
+    const r = await fetch("/api/action", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({action, label}),
+    });
+    const j = await r.json();
+    if (j.ok === false) {
+      alert("נכשל: " + (j.error || j.msg || "שגיאה לא ידועה"));
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
+    if (action === "dismiss" && row) {
+      row.style.transition = "opacity .25s";
+      row.style.opacity = "0";
+      setTimeout(() => row.remove(), 280);
+    } else {
+      btn.classList.add("flash-ok");
+      btn.textContent = action === "kickstart" ? "הופעל ✓" : "✓";
+      setTimeout(() => location.reload(), 1200);
+    }
+  } catch (e) {
+    alert("שגיאת רשת: " + e.message);
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+</script>
+</body></html>
